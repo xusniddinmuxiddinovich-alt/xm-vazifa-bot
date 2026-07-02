@@ -52,6 +52,22 @@ KAT_EMOJI = {"gb": "GB", "davlat": "Davlat", "shaxsiy": "Shaxsiy"}
 KAT_NOMI = {"gb": "Golden Brain", "davlat": "Davlat ishi", "shaxsiy": "Shaxsiy"}
 HOLAT_EMOJI = {"kutilmoqda": "[kutilmoqda]", "chala": "[chala]", "bajarildi": "[OK]", "bajarilmadi": "[XATO]"}
 
+
+def faqat_admin(func):
+    """Decorator: faqat ADMIN_ID ga ruxsat beradi"""
+    async def wrapper(update, ctx, *args, **kwargs):
+        user_id = update.effective_user.id if update.effective_user else 0
+        if ADMIN_ID != 0 and user_id != ADMIN_ID:
+            await update.effective_message.reply_text(
+                "Kechirasiz, siz bu botdan foydalana olmaysiz."
+            )
+            logger.warning(f"Ruxsatsiz kirish urinishi: user_id={user_id}")
+            return
+        return await func(update, ctx, *args, **kwargs)
+    wrapper.__wrapped__ = func
+    return wrapper
+
+
 def audio_to_text(audio_bytes):
     if not GROQ_API_KEY:
         return ""
@@ -79,6 +95,7 @@ def audio_to_text(audio_bytes):
         logger.error(f"Audio xatosi: {e}")
         return ""
 
+
 async def image_to_text(img_bytes):
     if not OPENAI_API_KEY:
         return ""
@@ -100,6 +117,7 @@ async def image_to_text(img_bytes):
     except Exception as e:
         logger.error(f"Rasm tahlil xatosi: {e}")
         return ""
+
 
 def text_to_tasks_ai(text):
     if not GROQ_API_KEY:
@@ -126,6 +144,7 @@ def text_to_tasks_ai(text):
         logger.error(f"AI xatosi: {e}")
         return None
 
+
 def kat_detect(matn):
     m = matn.lower()
     if "#gb" in m or "golden brain" in m:
@@ -135,6 +154,7 @@ def kat_detect(matn):
     if "#shaxsiy" in m or "shaxsiy" in m:
         return "shaxsiy"
     return None
+
 
 def sana_parse(matn):
     sana_str, vaqt_str, eslatma_str = "", "", ""
@@ -154,17 +174,19 @@ def sana_parse(matn):
         eslatma_str = f"{e.group(1)} {e.group(2)} oldin"
     return sana_str, vaqt_str, eslatma_str
 
+
 def vazifa_text(v):
     kat = KAT_NOMI.get(v.kategoriya, v.kategoriya)
     holat = HOLAT_EMOJI.get(v.holat, "?")
     return (
         f"{holat} <b>{v.nomi}</b>\n"
-        f"  Bolim: {KAT_EMOJI.get(v.kategoriya, '')} {kat}\n"
-        f"  Masul: {v.masul}\n"
-        f"  Sana: {v.sana or '--'}\n"
-        f"  Vaqt: {v.vaqt or '--'}\n"
-        f"  Eslatma: {v.eslatma_vaqt or '--'}"
+        f" Bolim: {KAT_EMOJI.get(v.kategoriya, '')} {kat}\n"
+        f" Masul: {v.masul}\n"
+        f" Sana: {v.sana or '--'}\n"
+        f" Vaqt: {v.vaqt or '--'}\n"
+        f" Eslatma: {v.eslatma_vaqt or '--'}"
     )
+
 
 def hisobot_text(session, sarlavha):
     bugun = datetime.now(TIMEZONE).strftime("%d.%m.%Y")
@@ -198,19 +220,20 @@ def hisobot_text(session, sarlavha):
 
     txt = (
         f"================\n{sarlavha}\n{uz_sana}\n================\n\n"
-        f"GOLDEN BRAIN:\n  OK: {gb_b}  Chala: {gb_c}  XATO: {gb_m}\n\n"
-        f"DAVLAT ISHI:\n  OK: {dv_b}  Chala: {dv_c}  XATO: {dv_m}\n\n"
-        f"SHAXSIY:\n  OK: {sh_b}  Chala: {sh_c}  XATO: {sh_m}\n\n"
+        f"GOLDEN BRAIN:\n OK: {gb_b}  Chala: {gb_c}  XATO: {gb_m}\n\n"
+        f"DAVLAT ISHI:\n OK: {dv_b}  Chala: {dv_c}  XATO: {dv_m}\n\n"
+        f"SHAXSIY:\n OK: {sh_b}  Chala: {sh_c}  XATO: {sh_m}\n\n"
         f"================\n"
     )
     if bugungi:
         txt += "BUGUNGI VAZIFALAR:\n"
         for i, v in enumerate(bugungi, 1):
-            txt += f"  {i}. {v.nomi} [{v.vaqt or '--'}]\n"
+            txt += f" {i}. {v.nomi} [{v.vaqt or '--'}]\n"
     else:
         txt += "Bugun uchun vazifa yoq\n"
     txt += "================"
     return txt
+
 
 def jadval_text(session):
     vazifalar = session.query(Vazifa).order_by(Vazifa.id).all()
@@ -220,9 +243,10 @@ def jadval_text(session):
     for v in vazifalar:
         kat = KAT_NOMI.get(v.kategoriya, v.kategoriya)
         holat = HOLAT_EMOJI.get(v.holat, "?")
-        lines.append(f"<b>#{v.id}</b> | {holat} {v.nomi}\n  {kat} | {v.masul} | {v.sana or '--'} {v.vaqt or '--'}\n")
+        lines.append(f"<b>#{v.id}</b> | {holat} {v.nomi}\n {kat} | {v.masul} | {v.sana or '--'} {v.vaqt or '--'}\n")
     lines.append("================")
     return "\n".join(lines)
+
 
 def holat_keyboard(vazifa_id):
     return InlineKeyboardMarkup([
@@ -236,6 +260,7 @@ def holat_keyboard(vazifa_id):
         ]
     ])
 
+
 def kategoriya_keyboard(matn):
     return InlineKeyboardMarkup([
         [
@@ -245,6 +270,7 @@ def kategoriya_keyboard(matn):
         [InlineKeyboardButton("Shaxsiy #shaxsiy", callback_data=f"kat_shaxsiy|{matn[:200]}")]
     ])
 
+
 def tasdiqlash_keyboard(vazifa_id):
     return InlineKeyboardMarkup([[
         InlineKeyboardButton("Ha, saqlash", callback_data=f"saqlash_{vazifa_id}"),
@@ -252,6 +278,8 @@ def tasdiqlash_keyboard(vazifa_id):
         InlineKeyboardButton("Yoq", callback_data=f"ochir_{vazifa_id}")
     ]])
 
+
+@faqat_admin
 async def cmd_start(update, ctx):
     ai_groq = "AI faol" if GROQ_API_KEY else "AI sozlanmagan"
     ai_openai = "Rasm AI faol" if OPENAI_API_KEY else "Rasm AI sozlanmagan"
@@ -264,29 +292,25 @@ async def cmd_start(update, ctx):
         parse_mode="HTML"
     )
 
+
+@faqat_admin
 async def cmd_yordam(update, ctx):
     ai_status = "Faol (Groq)" if GROQ_API_KEY else "Sozlanmagan"
     img_status = "Faol (OpenAI GPT-4o)" if OPENAI_API_KEY else "Sozlanmagan"
     await update.message.reply_text(
         f"<b>BUYRUQLAR</b>\n\n"
-        f"/start - Boshlash\n"
-        f"/hisobot - Joriy holat\n"
-        f"/jadval - Barcha vazifalar\n"
-        f"/gb - Golden Brain vazifalari\n"
-        f"/davlat - Davlat ishi vazifalari\n"
-        f"/shaxsiy - Shaxsiy vazifalar\n"
-        f"/tugallanmagan - Tugallanmaganlar\n"
-        f"/barchasi - Barcha vazifalar\n"
-        f"/yordam - Bu menyu\n\n"
-        f"<b>AI holati:</b>\n"
-        f"Matn/Ovoz: {ai_status}\n"
-        f"Rasm: {img_status}\n\n"
-        f"<b>Vazifa qoshish:</b>\n"
-        f"Matn yozing, ovoz yuboring, yoki rasm yuboring\n"
+        f"/start - Boshlash\n/hisobot - Joriy holat\n/jadval - Barcha vazifalar\n"
+        f"/gb - Golden Brain vazifalari\n/davlat - Davlat ishi vazifalari\n"
+        f"/shaxsiy - Shaxsiy vazifalar\n/tugallanmagan - Tugallanmaganlar\n"
+        f"/barchasi - Barcha vazifalar\n/yordam - Bu menyu\n\n"
+        f"<b>AI holati:</b>\nMatn/Ovoz: {ai_status}\nRasm: {img_status}\n\n"
+        f"<b>Vazifa qoshish:</b>\nMatn yozing, ovoz yuboring, yoki rasm yuboring\n"
         f"Teglar: #gb #davlat #shaxsiy",
         parse_mode="HTML"
     )
 
+
+@faqat_admin
 async def cmd_hisobot(update, ctx):
     session = Session()
     try:
@@ -295,6 +319,8 @@ async def cmd_hisobot(update, ctx):
     finally:
         session.close()
 
+
+@faqat_admin
 async def cmd_jadval(update, ctx):
     session = Session()
     try:
@@ -303,7 +329,8 @@ async def cmd_jadval(update, ctx):
     finally:
         session.close()
 
-async def cmd_kategoriya(update, ctx, kat):
+
+async def _kat_inner(update, ctx, kat):
     session = Session()
     try:
         vazifalar = session.query(Vazifa).filter_by(kategoriya=kat).all()
@@ -315,20 +342,28 @@ async def cmd_kategoriya(update, ctx, kat):
         for v in vazifalar:
             txt += vazifa_text(v) + "\n\n"
         if len(txt) > 4000:
-            txt = txt[:4000] + "...\n(Ko'p vazifalar, qisman ko'rsatilmoqda)"
+            txt = txt[:4000] + "...\n(Ko'p vazifalar)"
         await update.message.reply_text(txt, parse_mode="HTML")
     finally:
         session.close()
 
+
+@faqat_admin
 async def cmd_gb(update, ctx):
-    await cmd_kategoriya(update, ctx, "gb")
+    await _kat_inner(update, ctx, "gb")
 
+
+@faqat_admin
 async def cmd_davlat(update, ctx):
-    await cmd_kategoriya(update, ctx, "davlat")
+    await _kat_inner(update, ctx, "davlat")
 
+
+@faqat_admin
 async def cmd_shaxsiy(update, ctx):
-    await cmd_kategoriya(update, ctx, "shaxsiy")
+    await _kat_inner(update, ctx, "shaxsiy")
 
+
+@faqat_admin
 async def cmd_tugallanmagan(update, ctx):
     session = Session()
     try:
@@ -343,6 +378,8 @@ async def cmd_tugallanmagan(update, ctx):
     finally:
         session.close()
 
+
+@faqat_admin
 async def cmd_barchasi(update, ctx):
     session = Session()
     try:
@@ -359,10 +396,11 @@ async def cmd_barchasi(update, ctx):
     finally:
         session.close()
 
+
+@faqat_admin
 async def matn_handler(update, ctx):
     matn = update.message.text.strip()
     kichik = matn.lower()
-
     if any(s in kichik for s in ["hisobot", "holat", "necha"]):
         session = Session()
         try:
@@ -371,7 +409,6 @@ async def matn_handler(update, ctx):
         finally:
             session.close()
         return
-
     if any(s in kichik for s in ["jadval", "barchasi", "excel"]):
         session = Session()
         try:
@@ -380,7 +417,6 @@ async def matn_handler(update, ctx):
         finally:
             session.close()
         return
-
     ai_result = text_to_tasks_ai(matn)
     if ai_result and ai_result.get("vazifalar"):
         vazifalar_list = ai_result["vazifalar"]
@@ -401,16 +437,11 @@ async def matn_handler(update, ctx):
                 session.commit()
                 session.refresh(v)
                 saved.append(v)
-
             if len(saved) == 1:
                 v = saved[0]
-                txt = (
-                    f"AI aniqladim:\n\n1. {v.nomi}\n"
-                    f"  Bolim: {KAT_NOMI.get(v.kategoriya, v.kategoriya)}\n"
-                    f"  Sana: {v.sana or '--'}\n"
-                    f"  Vaqt: {v.vaqt or '--'}\n"
-                    f"  Eslatma: {v.eslatma_vaqt or '--'}\n\nTogrimii?"
-                )
+                txt = (f"AI aniqladim:\n\n1. {v.nomi}\n Bolim: {KAT_NOMI.get(v.kategoriya, v.kategoriya)}\n"
+                       f" Sana: {v.sana or '--'}\n Vaqt: {v.vaqt or '--'}\n"
+                       f" Eslatma: {v.eslatma_vaqt or '--'}\n\nTogrimii?")
                 await update.message.reply_text(txt, reply_markup=tasdiqlash_keyboard(v.id), parse_mode="HTML")
             else:
                 txt = f"AI {len(saved)} ta vazifa aniqladi va saqladi!\n\n"
@@ -420,43 +451,30 @@ async def matn_handler(update, ctx):
         finally:
             session.close()
         return
-
     kat = kat_detect(matn)
     sana_str, vaqt_str, eslatma_str = sana_parse(matn)
-
     if not kat:
         await update.message.reply_text(
             f"Qaysi bolimga qoshish?\n\n<i>{matn[:200]}</i>",
-            reply_markup=kategoriya_keyboard(matn),
-            parse_mode="HTML"
+            reply_markup=kategoriya_keyboard(matn), parse_mode="HTML"
         )
         return
-
     session = Session()
     try:
-        v = Vazifa(
-            nomi=matn[:500],
-            kategoriya=kat,
-            masul="Xusniddin",
-            sana=sana_str,
-            vaqt=vaqt_str,
-            eslatma_vaqt=eslatma_str,
-            holat="kutilmoqda"
-        )
+        v = Vazifa(nomi=matn[:500], kategoriya=kat, masul="Xusniddin",
+                   sana=sana_str, vaqt=vaqt_str, eslatma_vaqt=eslatma_str, holat="kutilmoqda")
         session.add(v)
         session.commit()
         session.refresh(v)
-        txt = (
-            f"Aniqladim:\n\n1. {v.nomi}\n"
-            f"  Bolim: {KAT_NOMI.get(kat, kat)}\n"
-            f"  Sana: {v.sana or '--'}\n"
-            f"  Vaqt: {v.vaqt or '--'}\n"
-            f"  Eslatma: {v.eslatma_vaqt or '--'}\n\nTogrimii?"
-        )
+        txt = (f"Aniqladim:\n\n1. {v.nomi}\n Bolim: {KAT_NOMI.get(kat, kat)}\n"
+               f" Sana: {v.sana or '--'}\n Vaqt: {v.vaqt or '--'}\n"
+               f" Eslatma: {v.eslatma_vaqt or '--'}\n\nTogrimii?")
         await update.message.reply_text(txt, reply_markup=tasdiqlash_keyboard(v.id), parse_mode="HTML")
     finally:
         session.close()
 
+
+@faqat_admin
 async def voice_handler(update, ctx):
     try:
         audio = update.message.voice or update.message.audio
@@ -465,52 +483,48 @@ async def voice_handler(update, ctx):
         await update.message.reply_text("Ovoz qabul qilindi, tahlil qilinmoqda...")
         file = await ctx.bot.get_file(audio.file_id)
         audio_bytes = await file.download_as_bytearray()
-
         if GROQ_API_KEY:
             text = audio_to_text(bytes(audio_bytes))
             if text:
                 await update.message.reply_text(f"Siz aytdingiz:\n<i>{text}</i>", parse_mode="HTML")
                 fake_update = type("FakeUpdate", (), {
-                    "message": type("Msg", (), {
-                        "text": text,
-                        "reply_text": update.message.reply_text
-                    })()
+                    "message": type("Msg", (), {"text": text, "reply_text": update.message.reply_text})()
                 })()
-                await matn_handler(fake_update, ctx)
+                await matn_handler.__wrapped__(fake_update, ctx)
             else:
-                await update.message.reply_text("Ovozni tushuna olmadim. Qayta urinib koring.")
+                await update.message.reply_text("Ovozni tushuna olmadim.")
         else:
-            await update.message.reply_text("Ovoz AI sozlanmagan. GROQ_API_KEY kiriting.")
+            await update.message.reply_text("Ovoz AI sozlanmagan.")
     except Exception as e:
         logger.error(f"Voice xatosi: {e}")
         await update.message.reply_text(f"Xatolik: {e}")
 
+
+@faqat_admin
 async def photo_handler(update, ctx):
     try:
         await update.message.reply_text("Rasm qabul qilindi, tahlil qilinmoqda...")
         photo = update.message.photo[-1]
         file = await ctx.bot.get_file(photo.file_id)
         img_bytes = await file.download_as_bytearray()
-
         if OPENAI_API_KEY:
             text = await image_to_text(bytes(img_bytes))
             if text:
                 await update.message.reply_text(f"Rasmdagi matn:\n<i>{text[:500]}</i>", parse_mode="HTML")
                 fake_update = type("FakeUpdate", (), {
-                    "message": type("Msg", (), {
-                        "text": text,
-                        "reply_text": update.message.reply_text
-                    })()
+                    "message": type("Msg", (), {"text": text, "reply_text": update.message.reply_text})()
                 })()
-                await matn_handler(fake_update, ctx)
+                await matn_handler.__wrapped__(fake_update, ctx)
             else:
                 await update.message.reply_text("Rasmdan matn ajrata olmadim.")
         else:
-            await update.message.reply_text("Rasm AI sozlanmagan. OPENAI_API_KEY kiriting.")
+            await update.message.reply_text("Rasm AI sozlanmagan.")
     except Exception as e:
         logger.error(f"Photo xatosi: {e}")
         await update.message.reply_text(f"Xatolik: {e}")
 
+
+@faqat_admin
 async def callback_handler(update, ctx):
     query = update.callback_query
     await query.answer()
@@ -522,39 +536,23 @@ async def callback_handler(update, ctx):
             kat = parts[0].replace("kat_", "")
             matn = parts[1] if len(parts) > 1 else ""
             sana_str, vaqt_str, eslatma_str = sana_parse(matn)
-            v = Vazifa(
-                nomi=matn[:500],
-                kategoriya=kat,
-                masul="Xusniddin",
-                sana=sana_str,
-                vaqt=vaqt_str,
-                eslatma_vaqt=eslatma_str,
-                holat="kutilmoqda"
-            )
+            v = Vazifa(nomi=matn[:500], kategoriya=kat, masul="Xusniddin",
+                       sana=sana_str, vaqt=vaqt_str, eslatma_vaqt=eslatma_str, holat="kutilmoqda")
             session.add(v)
             session.commit()
             session.refresh(v)
-            txt = (
-                f"Aniqladim:\n\n1. {v.nomi}\n"
-                f"  Bolim: {KAT_NOMI.get(kat, kat)}\n"
-                f"  Sana: {v.sana or '--'}\n"
-                f"  Vaqt: {v.vaqt or '--'}\n"
-                f"  Eslatma: {v.eslatma_vaqt or '--'}\n\nTogrimii?"
-            )
+            txt = (f"Aniqladim:\n\n1. {v.nomi}\n Bolim: {KAT_NOMI.get(kat, kat)}\n"
+                   f" Sana: {v.sana or '--'}\n Vaqt: {v.vaqt or '--'}\n"
+                   f" Eslatma: {v.eslatma_vaqt or '--'}\n\nTogrimii?")
             await query.edit_message_text(txt, reply_markup=tasdiqlash_keyboard(v.id), parse_mode="HTML")
-
         elif data.startswith("saqlash_"):
             vid = int(data.split("_")[1])
             v = session.get(Vazifa, vid)
             if v:
                 v.holat = "kutilmoqda"
                 session.commit()
-                await query.edit_message_text(
-                    f"Vazifa saqlandi!\n\n{vazifa_text(v)}",
-                    reply_markup=holat_keyboard(v.id),
-                    parse_mode="HTML"
-                )
-
+                await query.edit_message_text(f"Vazifa saqlandi!\n\n{vazifa_text(v)}",
+                                               reply_markup=holat_keyboard(v.id), parse_mode="HTML")
         elif data.startswith("holat_"):
             parts = data.split("_")
             vid = int(parts[1])
@@ -563,12 +561,8 @@ async def callback_handler(update, ctx):
             if v:
                 v.holat = yangi
                 session.commit()
-                await query.edit_message_text(
-                    f"Holat yangilandi: {yangi}\n\n{vazifa_text(v)}",
-                    reply_markup=holat_keyboard(v.id),
-                    parse_mode="HTML"
-                )
-
+                await query.edit_message_text(f"Holat yangilandi: {yangi}\n\n{vazifa_text(v)}",
+                                               reply_markup=holat_keyboard(v.id), parse_mode="HTML")
         elif data.startswith("ochir_"):
             vid = int(data.split("_")[1])
             v = session.get(Vazifa, vid)
@@ -576,12 +570,11 @@ async def callback_handler(update, ctx):
                 session.delete(v)
                 session.commit()
                 await query.edit_message_text("Vazifa o'chirildi.", parse_mode="HTML")
-
         elif data.startswith("ozgartir_"):
             await query.edit_message_text("Yangi vazifani yozing va yuboring.", parse_mode="HTML")
-
     finally:
         session.close()
+
 
 async def eslatma_tekshir(app):
     if not ADMIN_ID:
@@ -615,12 +608,8 @@ async def eslatma_tekshir(app):
                         delta = timedelta(hours=n) if em.group(2) == "soat" else timedelta(minutes=n)
                 eslatma_dt = vazifa_dt - delta
                 if eslatma_dt <= now <= vazifa_dt:
-                    txt = (
-                        f"ESLATMA!\n==============\n"
-                        f"{v.nomi}\nSana: {v.sana}\nVaqt: {v.vaqt}\n"
-                        f"Bolim: {KAT_NOMI.get(v.kategoriya, v.kategoriya)}\n"
-                        f"Masul: {v.masul}\n==============\nVaqt keldi!"
-                    )
+                    txt = (f"ESLATMA!\n==============\n{v.nomi}\nSana: {v.sana}\nVaqt: {v.vaqt}\n"
+                           f"Bolim: {KAT_NOMI.get(v.kategoriya, v.kategoriya)}\nMasul: {v.masul}\n==============\nVaqt keldi!")
                     await app.bot.send_message(ADMIN_ID, txt, parse_mode="HTML")
                     v.eslatma_yuborildi = 1
                     session.commit()
@@ -628,6 +617,7 @@ async def eslatma_tekshir(app):
                 logger.warning(f"Eslatma xatosi {v.id}: {e}")
     finally:
         session.close()
+
 
 async def ertalabki_hisobot(app):
     if not ADMIN_ID:
@@ -639,6 +629,7 @@ async def ertalabki_hisobot(app):
     finally:
         session.close()
 
+
 async def kechki_hisobot(app):
     if not ADMIN_ID:
         return
@@ -649,12 +640,11 @@ async def kechki_hisobot(app):
     finally:
         session.close()
 
+
 def main():
     if not BOT_TOKEN:
         raise ValueError("BOT_TOKEN muhit o'zgaruvchisi o'rnatilmagan!")
-
     app = Application.builder().token(BOT_TOKEN).build()
-
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("yordam", cmd_yordam))
     app.add_handler(CommandHandler("hisobot", cmd_hisobot))
@@ -669,16 +659,15 @@ def main():
     app.add_handler(MessageHandler(filters.AUDIO, voice_handler))
     app.add_handler(MessageHandler(filters.PHOTO, photo_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, matn_handler))
-
     scheduler = AsyncIOScheduler(timezone=TIMEZONE)
     scheduler.add_job(ertalabki_hisobot, "cron", hour=5, minute=0, args=[app])
     scheduler.add_job(kechki_hisobot, "cron", hour=21, minute=0, args=[app])
     scheduler.add_job(eslatma_tekshir, "interval", minutes=1, args=[app])
     scheduler.start()
-
     logger.info("XM Task Manager bot ishga tushdi! AI: Groq=%s, OpenAI=%s",
                 bool(GROQ_API_KEY), bool(OPENAI_API_KEY))
     app.run_polling(allowed_updates=Update.ALL_TYPES)
+
 
 if __name__ == "__main__":
     main()
